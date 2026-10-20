@@ -1,0 +1,38 @@
+[
+  {
+    "event_id": "evt-iot-9901f4",
+    "timestamp": "2026-10-20T10:15:30.000Z",
+    "source_node": "edge-vortex-use-001",
+    "region": "us-east-virginia",
+    "category": "iot_industrial_sensor",
+    "metrics": {
+      "throughput_mbps": 420.5,
+      "latency_ms": 22.4,
+      "cpu_utilization": 45.2,
+      "memory_mb": 4096.0,
+      "error_count": 0,
+      "temperature_c": 52.1
+    },
+    "status": "OPTIMAL",
+    "tags": ["iot", "use", "turbines"],
+    "payload_size_bytes": 512
+  },
+  {
+    "event_id": "evt-iot-9902b7",
+    "timestamp": "2026-10-20T10:15:31.000Z",
+    "source_node": "edge-vortex-euw-003",
+    "region": "eu-west-frankfurt",
+    "category": "iot_industrial_sensor",
+    "metrics": {
+      "throughput_mbps": 890.1,
+      "latency_ms": 612.8,
+      "cpu_utilization": 96.4,
+      "memory_mb": 15420.0,
+      "error_count": 42,
+      "temperature_c": 91.5
+    },
+    "status": "CRITICAL",
+    "tags": ["iot", "euw", "ANOMALY", "THERMAL_EXCURSION"],
+    "payload_size_bytes": 1024
+  }
+]

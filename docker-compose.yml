@@ -1,0 +1,47 @@
+version: '3.8'
+
+services:
+  # VORTEX Application & Web Client
+  vortex-app:
+    build: .
+    container_name: vortex-app
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      - MONGODB_URI=mongodb://mongo:27017
+      - DATABASE_NAME=vortex_bigdata
+      - PORT=8080
+      - HOST=0.0.0.0
+    depends_on:
+      - mongo
+
+  # Production MongoDB Big Data Store
+  mongo:
+    image: mongo:7.0
+    container_name: vortex-mongodb
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_DATABASE: vortex_bigdata
+    volumes:
+      - mongo_data:/data/db
+    command: ["mongod", "--wiredTigerCacheSizeGB", "1.5"]
+
+  # Mongo Express - Interactive DB Inspection Web Interface
+  mongo-express:
+    image: mongo-express:latest
+    container_name: vortex-mongo-express
+    restart: unless-stopped
+    ports:
+      - "8081:8081"
+    environment:
+      ME_CONFIG_MONGODB_SERVER: mongo
+      ME_CONFIG_MONGODB_PORT: 27017
+      ME_CONFIG_MONGODB_ENABLE_ADMIN: "true"
+    depends_on:
+      - mongo
+
+volumes:
+  mongo_data:

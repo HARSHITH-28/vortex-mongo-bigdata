@@ -1,0 +1,38 @@
+[
+  {
+    "event_id": "evt-sec-8810a1",
+    "timestamp": "2026-10-20T10:18:00.000Z",
+    "source_node": "edge-vortex-apn-005",
+    "region": "ap-northeast-tokyo",
+    "category": "cyber_security_audit",
+    "metrics": {
+      "throughput_mbps": 1250.0,
+      "latency_ms": 14.2,
+      "cpu_utilization": 54.0,
+      "memory_mb": 6144.0,
+      "error_count": 0,
+      "temperature_c": 44.8
+    },
+    "status": "OPTIMAL",
+    "tags": ["cyber", "apn", "auth_ok"],
+    "payload_size_bytes": 768
+  },
+  {
+    "event_id": "evt-sec-8810b2",
+    "timestamp": "2026-10-20T10:18:05.000Z",
+    "source_node": "edge-vortex-sae-002",
+    "region": "sa-east-saopaulo",
+    "category": "cyber_security_audit",
+    "metrics": {
+      "throughput_mbps": 32.0,
+      "latency_ms": 840.5,
+      "cpu_utilization": 98.7,
+      "memory_mb": 15890.0,
+      "error_count": 180,
+      "temperature_c": 82.0
+    },
+    "status": "CRITICAL",
+    "tags": ["cyber", "sae", "ANOMALY", "PACKET_BURST_FAILURE"],
+    "payload_size_bytes": 1400
+  }
+]

@@ -1,0 +1,713 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VORTEX // MongoDB Big Data Lakehouse & Real-Time Analytics</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Chart.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Google Fonts: Space Grotesk & JetBrains Mono -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Custom Cyber CSS -->
+    <link rel="stylesheet" href="/static/css/vortex-cyber.css">
+</head>
+<body class="cyber-grid min-h-screen text-slate-100 antialiased selection:bg-cyan-500 selection:text-black">
+
+    <!-- Ambient Canvas Mesh -->
+    <canvas id="vortex-canvas"></canvas>
+
+    <!-- Master Header / Tactical HUD -->
+    <header class="sticky top-0 z-40 bg-[#070a0f]/90 backdrop-blur-xl border-b border-white/10 px-6 py-3.5">
+        <div class="max-w-[1720px] mx-auto flex items-center justify-between">
+            
+            <!-- Brand & Pulse Conduit -->
+            <div class="flex items-center space-x-4">
+                <div class="relative w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-500/20 via-purple-500/20 to-emerald-500/20 border border-cyan-400/40 flex items-center justify-center shadow-lg shadow-cyan-500/10">
+                    <i data-lucide="database" class="w-5 h-5 text-cyan-400"></i>
+                    <div class="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-emerald-400 beacon-pulse" id="wsStatusDot" title="WebSocket Live Connected"></div>
+                </div>
+                <div>
+                    <div class="flex items-center space-x-2">
+                        <span class="text-lg font-bold tracking-wider text-white glow-cyan font-['Space_Grotesk']">VORTEX // MONGO-LAKEHOUSE</span>
+                        <span id="mongoModeBadge" class="px-2 py-0.5 rounded text-[10px] mono font-bold bg-cyan-500/20 text-cyan-300 border border-cyan-500/40">INITIALIZING...</span>
+                        <span id="mongoPingBadge" class="text-[11px] mono text-slate-400">0.0ms</span>
+                    </div>
+                    <p class="text-xs text-slate-400 tracking-wide">Autonomous MongoDB Big Data Ingestion, Aggregation Pipeline & Telemetry Matrix</p>
+                </div>
+            </div>
+
+            <!-- Ingestion Live Counters -->
+            <div class="hidden lg:flex items-center space-x-6 border-x border-white/10 px-6">
+                <div>
+                    <div class="text-[10px] mono text-slate-400 uppercase tracking-widest">INGESTION SPEED</div>
+                    <div class="text-lg font-bold mono text-cyan-400 flex items-center space-x-1">
+                        <span id="hudOpsSec">0</span>
+                        <span class="text-xs text-slate-500 font-normal">OPS/S</span>
+                    </div>
+                </div>
+                <div>
+                    <div class="text-[10px] mono text-slate-400 uppercase tracking-widest">STORAGE FOOTPRINT</div>
+                    <div class="text-lg font-bold mono text-emerald-400" id="hudStorageSize">0.0 MB</div>
+                </div>
+                <div>
+                    <div class="text-[10px] mono text-slate-400 uppercase tracking-widest">STREAM STATE</div>
+                    <div id="streamStatusPill" class="text-xs mono font-bold text-slate-400">IDLE</div>
+                </div>
+            </div>
+
+            <!-- Action Controls -->
+            <div class="flex items-center space-x-3">
+                <button id="toggleStreamBtn" class="px-3.5 py-1.5 rounded-lg border border-cyan-500/40 bg-cyan-500/10 text-cyan-300 mono text-xs font-semibold flex items-center space-x-1.5 hover:bg-cyan-500/20 transition">
+                    <i data-lucide="play" class="w-3.5 h-3.5 mr-1 inline"></i> START STREAM
+                </button>
+                <button id="quickSeedBtn" class="px-3 py-1.5 rounded-lg border border-purple-500/40 bg-purple-500/10 text-purple-300 mono text-xs font-semibold hover:bg-purple-500/20 transition flex items-center">
+                    <i data-lucide="plus-circle" class="w-3.5 h-3.5 mr-1.5"></i> SEED 5K
+                </button>
+                <button id="openMongoConfigBtn" class="p-2 rounded-lg border border-white/10 bg-slate-900/60 text-slate-300 hover:text-white hover:border-cyan-400/40 transition" title="MongoDB Connection Settings">
+                    <i data-lucide="settings" class="w-4 h-4"></i>
+                </button>
+                <button id="toggleAudioBtn" class="p-2 rounded-lg border border-white/10 bg-slate-900/60 text-slate-400 hover:text-cyan-400 transition" title="Toggle Tactile Audio Feedback">
+                    <i data-lucide="volume-2" class="w-4 h-4"></i>
+                </button>
+            </div>
+
+        </div>
+
+        <!-- Navigation Tabs Bar -->
+        <div class="max-w-[1720px] mx-auto mt-3 pt-2.5 border-t border-white/5 flex items-center space-x-2 overflow-x-auto">
+            <button class="nav-tab active px-4 py-1.5 rounded-lg border border-transparent text-xs font-semibold mono tracking-wider transition flex items-center space-x-2" data-tab="overview">
+                <i data-lucide="activity" class="w-3.5 h-3.5"></i>
+                <span>OVERVIEW & TELEMETRY</span>
+            </button>
+            <button class="nav-tab px-4 py-1.5 rounded-lg border border-transparent text-xs font-semibold mono tracking-wider transition flex items-center space-x-2 text-slate-400 hover:text-white" data-tab="pipeline">
+                <i data-lucide="cpu" class="w-3.5 h-3.5"></i>
+                <span>AGGREGATION STUDIO</span>
+            </button>
+            <button class="nav-tab px-4 py-1.5 rounded-lg border border-transparent text-xs font-semibold mono tracking-wider transition flex items-center space-x-2 text-slate-400 hover:text-white" data-tab="anomalies">
+                <i data-lucide="alert-triangle" class="w-3.5 h-3.5"></i>
+                <span>ANOMALY RADAR</span>
+            </button>
+            <button class="nav-tab px-4 py-1.5 rounded-lg border border-transparent text-xs font-semibold mono tracking-wider transition flex items-center space-x-2 text-slate-400 hover:text-white" data-tab="explorer">
+                <i data-lucide="table" class="w-3.5 h-3.5"></i>
+                <span>DATA LAKE EXPLORER</span>
+            </button>
+            <button class="nav-tab px-4 py-1.5 rounded-lg border border-transparent text-xs font-semibold mono tracking-wider transition flex items-center space-x-2 text-slate-400 hover:text-white" data-tab="ingestion">
+                <i data-lucide="zap" class="w-3.5 h-3.5"></i>
+                <span>INGESTION CONDUIT</span>
+            </button>
+            <button class="nav-tab px-4 py-1.5 rounded-lg border border-transparent text-xs font-semibold mono tracking-wider transition flex items-center space-x-2 text-slate-400 hover:text-white" data-tab="topology">
+                <i data-lucide="network" class="w-3.5 h-3.5"></i>
+                <span>TOPOLOGY & SHARDING</span>
+            </button>
+        </div>
+    </header>
+
+
+    <!-- Master Content Container -->
+    <main class="relative z-10 max-w-[1720px] mx-auto px-6 py-6">
+
+        <!-- ========================================================
+             TAB 1: OVERVIEW & LIVE TELEMETRY
+             ======================================================== -->
+        <section id="tab-overview" class="tab-content space-y-6">
+            
+            <!-- KPI Telemetry Grid -->
+            <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+                
+                <!-- KPI 1: Total Docs -->
+                <div class="glass-panel corner-accents p-4">
+                    <div class="flex items-center justify-between text-slate-400 text-xs mb-1">
+                        <span class="mono">INDEXED EVENTS</span>
+                        <i data-lucide="layers" class="w-4 h-4 text-cyan-400"></i>
+                    </div>
+                    <div class="text-2xl font-bold mono text-white glow-cyan" id="kpiTotalDocs">0</div>
+                    <div class="text-[11px] text-emerald-400 mono mt-1 flex items-center">
+                        <i data-lucide="arrow-up-right" class="w-3 h-3 mr-0.5"></i> Continuous Big Data
+                    </div>
+                </div>
+
+                <!-- KPI 2: Average Latency -->
+                <div class="glass-panel corner-accents p-4">
+                    <div class="flex items-center justify-between text-slate-400 text-xs mb-1">
+                        <span class="mono">MEAN LATENCY</span>
+                        <i data-lucide="clock" class="w-4 h-4 text-amber-400"></i>
+                    </div>
+                    <div class="text-2xl font-bold mono text-amber-300" id="kpiAvgLatency">0.0 ms</div>
+                    <div class="text-[11px] text-slate-400 mono mt-1">Rolling window</div>
+                </div>
+
+                <!-- KPI 3: P95 Latency SLA -->
+                <div class="glass-panel corner-accents p-4">
+                    <div class="flex items-center justify-between text-slate-400 text-xs mb-1">
+                        <span class="mono">P95 SLA THRESHOLD</span>
+                        <i data-lucide="shield-check" class="w-4 h-4 text-purple-400"></i>
+                    </div>
+                    <div class="text-2xl font-bold mono text-purple-300" id="kpiP95Latency">0.0 ms</div>
+                    <div class="text-[11px] text-slate-400 mono mt-1">P99: <span id="kpiP99Latency" class="text-purple-200">0.0 ms</span></div>
+                </div>
+
+                <!-- KPI 4: Bandwidth Throughput -->
+                <div class="glass-panel corner-accents p-4">
+                    <div class="flex items-center justify-between text-slate-400 text-xs mb-1">
+                        <span class="mono">THROUGHPUT</span>
+                        <i data-lucide="gauge" class="w-4 h-4 text-cyan-400"></i>
+                    </div>
+                    <div class="text-2xl font-bold mono text-cyan-300" id="kpiAvgThroughput">0.0 Mbps</div>
+                    <div class="text-[11px] text-cyan-400/70 mono mt-1">Dynamic load model</div>
+                </div>
+
+                <!-- KPI 5: Hardware Anomalies -->
+                <div class="glass-panel corner-accents p-4">
+                    <div class="flex items-center justify-between text-slate-400 text-xs mb-1">
+                        <span class="mono">ANOMALY INCIDENTS</span>
+                        <i data-lucide="alert-octagon" class="w-4 h-4 text-rose-400"></i>
+                    </div>
+                    <div class="text-2xl font-bold mono text-rose-400" id="kpiAnomalies">0 Crit / 0 Warn</div>
+                    <div class="text-[11px] text-slate-400 mono mt-1">Total Errors: <span id="kpiErrors" class="text-rose-300">0</span></div>
+                </div>
+
+                <!-- KPI 6: Cluster Health Score -->
+                <div class="glass-panel corner-accents p-4">
+                    <div class="flex items-center justify-between text-slate-400 text-xs mb-1">
+                        <span class="mono">HEALTH INDEX</span>
+                        <i data-lucide="heart-pulse" class="w-4 h-4 text-emerald-400"></i>
+                    </div>
+                    <div class="text-2xl font-bold mono text-emerald-400 glow-emerald" id="kpiHealthScore">100.0%</div>
+                    <div class="text-[11px] text-emerald-400/80 mono mt-1">Nominal Parameters</div>
+                </div>
+
+            </div>
+
+            <!-- Charts Section: Dual-Axis Stream & Regional Breakdown -->
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                
+                <!-- Main Dual-Axis Time-Series Chart -->
+                <div class="glass-panel p-5 lg:col-span-2 space-y-3">
+                    <div class="flex items-center justify-between border-b border-white/10 pb-3">
+                        <div class="flex items-center space-x-2">
+                            <i data-lucide="line-chart" class="w-4 h-4 text-cyan-400"></i>
+                            <h3 class="font-bold text-sm tracking-wide">REAL-TIME TELEMETRY MATRIX (THROUGHPUT VS LATENCY)</h3>
+                        </div>
+                        <span class="text-xs mono text-slate-400 flex items-center">
+                            <span class="w-2 h-2 rounded-full bg-cyan-400 mr-2"></span> 60-Minute Aggregated Buckets
+                        </span>
+                    </div>
+                    <div class="h-72 w-full">
+                        <canvas id="streamChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Regional Traffic & Fault Distribution -->
+                <div class="glass-panel p-5 space-y-3">
+                    <div class="flex items-center justify-between border-b border-white/10 pb-3">
+                        <div class="flex items-center space-x-2">
+                            <i data-lucide="globe" class="w-4 h-4 text-purple-400"></i>
+                            <h3 class="font-bold text-sm tracking-wide">REGIONAL BREAKDOWN ($GROUP)</h3>
+                        </div>
+                        <span class="text-xs mono text-slate-400">Multi-Region</span>
+                    </div>
+                    <div class="h-72 w-full">
+                        <canvas id="regionChart"></canvas>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Bottom Section: Live Log Waterfall & Automated Executive Insights -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                
+                <!-- Live Event Stream Log Waterfall -->
+                <div class="glass-panel p-5 space-y-3">
+                    <div class="flex items-center justify-between border-b border-white/10 pb-3">
+                        <div class="flex items-center space-x-2">
+                            <i data-lucide="terminal" class="w-4 h-4 text-emerald-400"></i>
+                            <h3 class="font-bold text-sm tracking-wide">LIVE INGESTION CONDUIT (BSON WATERFALL)</h3>
+                        </div>
+                        <span class="text-xs mono text-emerald-400 animate-pulse flex items-center">
+                            <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 mr-1.5"></span> STREAMING
+                        </span>
+                    </div>
+                    <div id="liveLogWaterfall" class="log-stream h-60 overflow-y-auto space-y-1 pr-2">
+                        <div class="text-slate-500 py-6 text-center mono text-xs">Waiting for incoming telemetry packets...</div>
+                    </div>
+                </div>
+
+                <!-- Automated Heuristic Insights Deck -->
+                <div class="glass-panel p-5 space-y-3">
+                    <div class="flex items-center justify-between border-b border-white/10 pb-3">
+                        <div class="flex items-center space-x-2">
+                            <i data-lucide="sparkles" class="w-4 h-4 text-amber-400"></i>
+                            <h3 class="font-bold text-sm tracking-wide">AUTOMATED ACTIONABLE INTELLIGENCE</h3>
+                        </div>
+                        <span class="text-xs mono text-amber-400">AI / Heuristics Engine</span>
+                    </div>
+                    <div id="insightsContainer" class="space-y-3 h-60 overflow-y-auto pr-2">
+                        <div class="text-slate-500 py-6 text-center mono text-xs">Computing statistical findings across data reservoir...</div>
+                    </div>
+                </div>
+
+            </div>
+
+        </section>
+
+
+        <!-- ========================================================
+             TAB 2: AGGREGATION PIPELINE STUDIO
+             ======================================================== -->
+        <section id="tab-pipeline" class="tab-content hidden space-y-6">
+            
+            <div class="glass-panel p-6 space-y-5">
+                <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-white/10 pb-4">
+                    <div>
+                        <h2 class="text-lg font-bold text-white flex items-center space-x-2">
+                            <i data-lucide="code-2" class="w-5 h-5 text-cyan-400"></i>
+                            <span>MONGODB AGGREGATION PIPELINE WORKBENCH</span>
+                        </h2>
+                        <p class="text-xs text-slate-400 mt-1">
+                            Compose multi-stage pipelines (<code class="text-cyan-300 mono">$match</code>, <code class="text-cyan-300 mono">$group</code>, <code class="text-cyan-300 mono">$facet</code>, <code class="text-cyan-300 mono">$bucketAuto</code>) against live Big Data collections.
+                        </p>
+                    </div>
+                    
+                    <!-- Presets Selector -->
+                    <div class="flex items-center space-x-3">
+                        <label class="text-xs mono text-slate-400">PRESET:</label>
+                        <select id="presetSelector" class="bg-slate-900 border border-cyan-500/30 rounded-lg px-3 py-1.5 text-xs text-cyan-300 mono focus:border-cyan-400 focus:outline-none">
+                            <!-- Populated dynamically -->
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Preset Description Callout -->
+                <div id="presetDescription" class="p-3 bg-cyan-950/20 border border-cyan-500/20 rounded-lg text-xs text-cyan-200/90 mono">
+                    Select a preset or edit JSON stages below.
+                </div>
+
+                <!-- Code Editor & Execution HUD -->
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    
+                    <!-- JSON Editor -->
+                    <div class="space-y-2">
+                        <div class="flex items-center justify-between text-xs mono text-slate-400">
+                            <span>PIPELINE STAGES (JSON ARRAY)</span>
+                            <button id="formatJsonBtn" class="text-cyan-400 hover:text-cyan-300">Format JSON</button>
+                        </div>
+                        <textarea id="pipelineJsonEditor" class="w-full h-80 bg-slate-950/80 border border-white/10 rounded-lg p-3.5 text-xs text-emerald-400 mono focus:border-cyan-400 focus:outline-none focus:ring-1 focus:ring-cyan-400/50 resize-none font-mono" spellcheck="false"></textarea>
+                        
+                        <div class="flex items-center justify-between pt-2">
+                            <div id="pipelineStatusHUD">
+                                <span class="mono text-xs text-slate-500">Ready to execute</span>
+                            </div>
+                            <button id="runPipelineBtn" class="px-5 py-2 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-black font-bold text-xs mono rounded-lg transition shadow-lg shadow-cyan-500/20 flex items-center">
+                                <i data-lucide="play" class="w-4 h-4 mr-1.5"></i> EXECUTE PIPELINE
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Output & Dynamic Chart Canvas -->
+                    <div class="space-y-2">
+                        <div class="flex items-center justify-between text-xs mono text-slate-400">
+                            <span>DYNAMIC AGGREGATION PLOT</span>
+                            <span class="text-slate-500">Auto-Generated Visualization</span>
+                        </div>
+                        <div id="pipelineChartContainer" class="h-80 bg-slate-950/50 border border-white/10 rounded-lg p-4 flex items-center justify-center">
+                            <div class="text-xs text-slate-500 mono text-center">Execute pipeline to generate visual chart</div>
+                        </div>
+                    </div>
+
+                </div>
+
+                <!-- Raw Result JSON Viewer -->
+                <div class="space-y-2 pt-2">
+                    <div class="flex items-center justify-between text-xs mono text-slate-400">
+                        <span>RAW BSON EXECUTION OUTPUT (MAX 200 DOCS)</span>
+                        <button id="copyResultsBtn" class="text-cyan-400 hover:text-cyan-300 flex items-center">
+                            <i data-lucide="copy" class="w-3.5 h-3.5 mr-1"></i> Copy JSON
+                        </button>
+                    </div>
+                    <pre id="pipelineRawResults" class="w-full h-56 bg-slate-950/90 border border-white/10 rounded-lg p-3 text-xs text-slate-300 mono overflow-y-auto font-mono">[]</pre>
+                </div>
+
+            </div>
+
+        </section>
+
+
+        <!-- ========================================================
+             TAB 3: ANOMALY RADAR & OUTLIER MATRIX
+             ======================================================== -->
+        <section id="tab-anomalies" class="tab-content hidden space-y-6">
+            
+            <div class="glass-panel p-6 space-y-6">
+                <div>
+                    <h2 class="text-lg font-bold text-white flex items-center space-x-2">
+                        <i data-lucide="radar" class="w-5 h-5 text-rose-400"></i>
+                        <span>STATISTICAL OUTLIER RADAR & HARDWARE ALERTS</span>
+                    </h2>
+                    <p class="text-xs text-slate-400 mt-1">
+                        Detects latency excursions, CPU overloads, and packet corruption using rolling Z-Score thresholding (\(Z > 2.58\)).
+                    </p>
+                </div>
+
+                <!-- Alert Feed -->
+                <div class="space-y-3">
+                    <div class="flex items-center justify-between text-xs mono text-slate-400 border-b border-white/10 pb-2">
+                        <span>ACTIVE TELEMETRY ANOMALIES</span>
+                        <span>Severity Tier: WARNING | CRITICAL</span>
+                    </div>
+                    <div id="anomalyAlertFeed" class="space-y-2.5 max-h-[600px] overflow-y-auto pr-2">
+                        <div class="text-xs text-slate-500 py-8 text-center mono">Scanning database collections for anomalous records...</div>
+                    </div>
+                </div>
+            </div>
+
+        </section>
+
+
+        <!-- ========================================================
+             TAB 4: DATA LAKE EXPLORER
+             ======================================================== -->
+        <section id="tab-explorer" class="tab-content hidden space-y-6">
+            
+            <div class="glass-panel p-6 space-y-5">
+                <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-white/10 pb-4">
+                    <div>
+                        <h2 class="text-lg font-bold text-white flex items-center space-x-2">
+                            <i data-lucide="table-2" class="w-5 h-5 text-cyan-400"></i>
+                            <span>TELEMETRY DATA LAKE EXPLORER</span>
+                        </h2>
+                        <p class="text-xs text-slate-400 mt-1">Direct indexed document browser with dynamic multi-field filtering & raw export</p>
+                    </div>
+
+                    <!-- Export Buttons -->
+                    <div class="flex items-center space-x-2">
+                        <button id="exportCsvBtn" class="px-3 py-1.5 bg-slate-900 border border-white/10 hover:border-cyan-400 text-xs mono rounded-lg text-slate-300 hover:text-white transition flex items-center">
+                            <i data-lucide="download" class="w-3.5 h-3.5 mr-1.5 text-cyan-400"></i> Export CSV
+                        </button>
+                        <button id="exportJsonBtn" class="px-3 py-1.5 bg-slate-900 border border-white/10 hover:border-purple-400 text-xs mono rounded-lg text-slate-300 hover:text-white transition flex items-center">
+                            <i data-lucide="file-code" class="w-3.5 h-3.5 mr-1.5 text-purple-400"></i> Export JSON
+                        </button>
+                        <button id="exportReportBtn" class="px-3 py-1.5 bg-slate-900 border border-white/10 hover:border-emerald-400 text-xs mono rounded-lg text-slate-300 hover:text-white transition flex items-center">
+                            <i data-lucide="file-text" class="w-3.5 h-3.5 mr-1.5 text-emerald-400"></i> Executive Brief
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Filters -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                        <label class="text-[11px] mono text-slate-400 block mb-1">REGION FILTER</label>
+                        <select id="docFilterRegion" class="w-full bg-slate-950 border border-white/10 rounded-lg px-3 py-1.5 text-xs text-slate-300 mono focus:border-cyan-400 focus:outline-none">
+                            <option value="">All Regions</option>
+                            <option value="us-east-virginia">us-east-virginia</option>
+                            <option value="us-west-oregon">us-west-oregon</option>
+                            <option value="eu-west-frankfurt">eu-west-frankfurt</option>
+                            <option value="ap-southeast-singapore">ap-southeast-singapore</option>
+                            <option value="ap-northeast-tokyo">ap-northeast-tokyo</option>
+                            <option value="sa-east-saopaulo">sa-east-saopaulo</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="text-[11px] mono text-slate-400 block mb-1">CATEGORY FILTER</label>
+                        <select id="docFilterCategory" class="w-full bg-slate-950 border border-white/10 rounded-lg px-3 py-1.5 text-xs text-slate-300 mono focus:border-cyan-400 focus:outline-none">
+                            <option value="">All Categories</option>
+                            <option value="iot_industrial_sensor">iot_industrial_sensor</option>
+                            <option value="cloud_hypervisor_telemetry">cloud_hypervisor_telemetry</option>
+                            <option value="financial_orderbook_tick">financial_orderbook_tick</option>
+                            <option value="edge_mesh_gateway">edge_mesh_gateway</option>
+                            <option value="cyber_security_audit">cyber_security_audit</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="text-[11px] mono text-slate-400 block mb-1">HEALTH STATUS</label>
+                        <select id="docFilterStatus" class="w-full bg-slate-950 border border-white/10 rounded-lg px-3 py-1.5 text-xs text-slate-300 mono focus:border-cyan-400 focus:outline-none">
+                            <option value="">All Statuses</option>
+                            <option value="OPTIMAL">OPTIMAL</option>
+                            <option value="WARNING">WARNING</option>
+                            <option value="CRITICAL">CRITICAL</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Document Table -->
+                <div class="overflow-x-auto border border-white/10 rounded-lg">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="bg-slate-900/80 border-b border-white/10 text-[11px] mono text-slate-400 uppercase tracking-wider">
+                                <th class="py-2.5 px-3">EVENT ID</th>
+                                <th class="py-2.5 px-3">SOURCE NODE</th>
+                                <th class="py-2.5 px-3">REGION</th>
+                                <th class="py-2.5 px-3">LATENCY</th>
+                                <th class="py-2.5 px-3">THROUGHPUT</th>
+                                <th class="py-2.5 px-3">STATUS</th>
+                            </tr>
+                        </thead>
+                        <tbody id="documentsTableBody">
+                            <tr>
+                                <td colspan="6" class="text-center py-8 text-slate-500 mono text-xs">Loading documents...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Pagination Footer -->
+                <div class="flex items-center justify-between pt-2">
+                    <div id="docPageIndicator" class="mono text-xs text-slate-400">Page 1</div>
+                    <div class="flex items-center space-x-2">
+                        <button id="docPrevPageBtn" class="px-3 py-1 bg-slate-900 border border-white/10 hover:border-cyan-400 text-xs mono rounded text-slate-300">Previous</button>
+                        <button id="docNextPageBtn" class="px-3 py-1 bg-slate-900 border border-white/10 hover:border-cyan-400 text-xs mono rounded text-slate-300">Next</button>
+                    </div>
+                </div>
+
+            </div>
+
+        </section>
+
+
+        <!-- ========================================================
+             TAB 5: INGESTION CONDUIT & STRESS TEST
+             ======================================================== -->
+        <section id="tab-ingestion" class="tab-content hidden space-y-6">
+            
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                
+                <!-- Streaming Conduit Controls -->
+                <div class="glass-panel p-6 space-y-5">
+                    <div class="border-b border-white/10 pb-4">
+                        <h2 class="text-lg font-bold text-white flex items-center space-x-2">
+                            <i data-lucide="radio" class="w-5 h-5 text-cyan-400"></i>
+                            <span>REAL-TIME STREAMING CONDUIT</span>
+                        </h2>
+                        <p class="text-xs text-slate-400 mt-1">Simulates high-velocity multi-tenant Big Data traffic into MongoDB collections.</p>
+                    </div>
+
+                    <!-- Sliders -->
+                    <div class="space-y-4">
+                        <div>
+                            <div class="flex items-center justify-between text-xs mono mb-1.5">
+                                <span class="text-slate-300">STREAM VELOCITY</span>
+                                <span id="streamRateVal" class="text-cyan-400 font-bold">250 events/sec</span>
+                            </div>
+                            <input id="streamRateSlider" type="range" min="20" max="2500" step="10" value="250" class="w-full accent-cyan-400" oninput="document.getElementById('streamRateVal').textContent = this.value + ' events/sec'">
+                            <div class="flex justify-between text-[10px] text-slate-500 mono mt-1">
+                                <span>20 /s (Baseline)</span>
+                                <span>1,000 /s (High Load)</span>
+                                <span>2,500 /s (Stress)</span>
+                            </div>
+                        </div>
+
+                        <div>
+                            <div class="flex items-center justify-between text-xs mono mb-1.5">
+                                <span class="text-slate-300">ANOMALY INJECTION RATIO</span>
+                                <span id="streamAnomVal" class="text-rose-400 font-bold">4.0%</span>
+                            </div>
+                            <input id="streamAnomalySlider" type="range" min="0.0" max="0.25" step="0.01" value="0.04" class="w-full accent-rose-400" oninput="document.getElementById('streamAnomVal').textContent = (this.value * 100).toFixed(1) + '%'">
+                        </div>
+                    </div>
+
+                    <div class="flex items-center space-x-3 pt-2">
+                        <button id="startStreamCtrl" class="flex-1 py-2.5 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-black font-bold text-xs mono rounded-lg transition shadow-lg shadow-cyan-500/20">
+                            ENGAGE STREAM CONDUIT
+                        </button>
+                        <button id="stopStreamCtrl" class="px-5 py-2.5 bg-slate-900 border border-rose-500/40 text-rose-300 hover:bg-rose-500/20 text-xs mono font-bold rounded-lg transition">
+                            HALT
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Bulk Batch Seeding & Purge -->
+                <div class="glass-panel p-6 space-y-5">
+                    <div class="border-b border-white/10 pb-4">
+                        <h2 class="text-lg font-bold text-white flex items-center space-x-2">
+                            <i data-lucide="database-backup" class="w-5 h-5 text-purple-400"></i>
+                            <span>HIGH-SPEED BULK SEEDING & RESET</span>
+                        </h2>
+                        <p class="text-xs text-slate-400 mt-1">Direct unordered bulk insert (<code class="text-purple-300 mono">insert_many(ordered=False)</code>) for immediate multi-thousand record benchmarks.</p>
+                    </div>
+
+                    <div class="space-y-4">
+                        <div>
+                            <label class="text-xs mono text-slate-400 block mb-1.5">SELECT BATCH SIZE</label>
+                            <select id="batchSizeSelect" class="w-full bg-slate-950 border border-white/10 rounded-lg px-3 py-2 text-xs text-slate-200 mono focus:border-purple-400 focus:outline-none">
+                                <option value="2500">2,500 documents (~1.2 MB)</option>
+                                <option value="5000" selected>5,000 documents (~2.4 MB)</option>
+                                <option value="10000">10,000 documents (~4.8 MB)</option>
+                                <option value="25000">25,000 documents (~12.0 MB)</option>
+                            </select>
+                        </div>
+
+                        <button id="seedBatchCtrl" class="w-full py-2.5 bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs mono rounded-lg transition shadow-lg shadow-purple-600/20 flex items-center justify-center">
+                            <i data-lucide="hard-drive-upload" class="w-4 h-4 mr-2"></i> EXECUTE BULK INGESTION
+                        </button>
+                    </div>
+
+                    <div class="pt-4 border-t border-white/10">
+                        <div class="text-[11px] mono text-slate-400 mb-2">DANGER ZONE</div>
+                        <button id="purgeDatabaseBtn" class="w-full py-2 bg-rose-950/40 border border-rose-500/30 text-rose-400 hover:bg-rose-900/40 text-xs mono rounded-lg transition">
+                            TRUNCATE / PURGE COLLECTIONS
+                        </button>
+                    </div>
+                </div>
+
+            </div>
+
+        </section>
+
+
+        <!-- ========================================================
+             TAB 6: TOPOLOGY & SHARDING ARCHITECTURE
+             ======================================================== -->
+        <section id="tab-topology" class="tab-content hidden space-y-6">
+            
+            <div class="glass-panel p-6 space-y-6">
+                <div class="border-b border-white/10 pb-4">
+                    <h2 class="text-lg font-bold text-white flex items-center space-x-2">
+                        <i data-lucide="network" class="w-5 h-5 text-cyan-400"></i>
+                        <span>MONGODB BIG DATA LAKEHOUSE TOPOLOGY</span>
+                    </h2>
+                    <p class="text-xs text-slate-400 mt-1">Enterprise storage patterns, compound indexes & distributed aggregation architecture</p>
+                </div>
+
+                <!-- SVG Visual Architecture Pipeline Flowchart -->
+                <div class="p-6 bg-slate-950/70 border border-white/10 rounded-xl overflow-x-auto">
+                    <svg viewBox="0 0 1100 240" class="w-full min-w-[900px] text-xs font-mono">
+                        <defs>
+                            <linearGradient id="cyanGrad" x1="0" y1="0" x2="1" y2="0">
+                                <stop offset="0%" stop-color="#00f0ff" stop-opacity="0.8"/>
+                                <stop offset="100%" stop-color="#a855f7" stop-opacity="0.8"/>
+                            </linearGradient>
+                            <filter id="neonGlow" x="-20%" y="-20%" width="140%" height="140%">
+                                <feGaussianBlur stdDeviation="4" result="blur" />
+                                <feComposite in="SourceGraphic" in2="blur" operator="over" />
+                            </filter>
+                        </defs>
+
+                        <!-- Node 1: Producers -->
+                        <g transform="translate(40, 60)">
+                            <rect width="160" height="110" rx="8" fill="#0d1424" stroke="#00f0ff" stroke-width="1.5" />
+                            <text x="80" y="30" fill="#00f0ff" font-weight="bold" text-anchor="middle">EDGE PRODUCERS</text>
+                            <text x="80" y="55" fill="#94a3b8" text-anchor="middle">• Multi-Region IoT</text>
+                            <text x="80" y="75" fill="#94a3b8" text-anchor="middle">• Financial Ticks</text>
+                            <text x="80" y="95" fill="#94a3b8" text-anchor="middle">• Cloud Telemetry</text>
+                        </g>
+
+                        <!-- Connector 1 -->
+                        <path d="M 200 115 L 270 115" stroke="url(#cyanGrad)" stroke-width="2" stroke-dasharray="4,4" />
+                        <circle cx="235" cy="115" r="4" fill="#00f0ff" filter="url(#neonGlow)" />
+
+                        <!-- Node 2: Ingestion Buffer -->
+                        <g transform="translate(270, 60)">
+                            <rect width="180" height="110" rx="8" fill="#0d1424" stroke="#a855f7" stroke-width="1.5" />
+                            <text x="90" y="30" fill="#a855f7" font-weight="bold" text-anchor="middle">INGESTION ENGINE</text>
+                            <text x="90" y="55" fill="#94a3b8" text-anchor="middle">• Micro-Batching (200ms)</text>
+                            <text x="90" y="75" fill="#94a3b8" text-anchor="middle">• Unordered Bulk Inserts</text>
+                            <text x="90" y="95" fill="#94a3b8" text-anchor="middle">• Real-Time WS Channel</text>
+                        </g>
+
+                        <!-- Connector 2 -->
+                        <path d="M 450 115 L 520 115" stroke="url(#cyanGrad)" stroke-width="2" />
+                        <circle cx="485" cy="115" r="4" fill="#a855f7" filter="url(#neonGlow)" />
+
+                        <!-- Node 3: MongoDB Lakehouse -->
+                        <g transform="translate(520, 45)">
+                            <rect width="220" height="140" rx="8" fill="#071822" stroke="#00ffa3" stroke-width="2" filter="url(#neonGlow)" />
+                            <text x="110" y="30" fill="#00ffa3" font-weight="bold" text-anchor="middle">MONGODB BIG DATA</text>
+                            <text x="110" y="55" fill="#94a3b8" text-anchor="middle">telemetry_stream collection</text>
+                            <text x="110" y="78" fill="#64748b" text-anchor="middle">Compound Indexes:</text>
+                            <text x="110" y="96" fill="#00ffa3" text-anchor="middle">(timestamp: -1, region: 1)</text>
+                            <text x="110" y="114" fill="#00ffa3" text-anchor="middle">(category: 1, latency_ms: -1)</text>
+                            <text x="110" y="132" fill="#94a3b8" text-anchor="middle">TTL Lifecycle Policy</text>
+                        </g>
+
+                        <!-- Connector 3 -->
+                        <path d="M 740 115 L 810 115" stroke="#00ffa3" stroke-width="2" />
+                        <circle cx="775" cy="115" r="4" fill="#00ffa3" />
+
+                        <!-- Node 4: Aggregation & Insights -->
+                        <g transform="translate(810, 60)">
+                            <rect width="210" height="110" rx="8" fill="#0d1424" stroke="#ffb800" stroke-width="1.5" />
+                            <text x="105" y="30" fill="#ffb800" font-weight="bold" text-anchor="middle">ANALYTICS PIPELINE</text>
+                            <text x="105" y="55" fill="#94a3b8" text-anchor="middle">• $facet Multi-Matrices</text>
+                            <text x="105" y="75" fill="#94a3b8" text-anchor="middle">• Z-Score Anomaly Radar</text>
+                            <text x="105" y="95" fill="#94a3b8" text-anchor="middle">• P95/P99 SLA Percentiles</text>
+                        </g>
+                    </svg>
+                </div>
+
+                <!-- Architecture Explanations -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 text-xs text-slate-300">
+                    <div class="p-4 bg-slate-900/60 border border-white/10 rounded-lg space-y-2">
+                        <h4 class="font-bold text-cyan-300 mono flex items-center">
+                            <i data-lucide="check-circle" class="w-4 h-4 mr-2"></i> TIME-SERIES & COMPOUND INDEXING
+                        </h4>
+                        <p class="leading-relaxed text-slate-400">
+                            Big Data telemetry workloads are write-heavy and time-range query intensive. VORTEX establishes compound BSON indexes on <code>(timestamp, region, category)</code> to satisfy analytical group stages without requiring expensive full-collection scans.
+                        </p>
+                    </div>
+
+                    <div class="p-4 bg-slate-900/60 border border-white/10 rounded-lg space-y-2">
+                        <h4 class="font-bold text-purple-300 mono flex items-center">
+                            <i data-lucide="check-circle" class="w-4 h-4 mr-2"></i> SHARDING KEY STRATEGY
+                        </h4>
+                        <p class="leading-relaxed text-slate-400">
+                            In a multi-cluster MongoDB deployment, the recommended shard key is compound: <code>{ region: 1, timestamp: 1 }</code>. This guarantees even data chunk distribution across cluster shards while preventing monotonic write hotspotting.
+                        </p>
+                    </div>
+                </div>
+
+            </div>
+
+        </section>
+
+    </main>
+
+
+    <!-- ========================================================
+         MODAL: MONGODB CLUSTER CONNECTION SETTINGS
+         ======================================================== -->
+    <div id="mongoConfigModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md hidden">
+        <div class="glass-panel corner-accents p-6 max-w-lg w-full mx-4 space-y-4 border border-cyan-400/40 shadow-2xl">
+            <div class="flex items-center justify-between border-b border-white/10 pb-3">
+                <div class="flex items-center space-x-2">
+                    <i data-lucide="database" class="w-5 h-5 text-cyan-400"></i>
+                    <h3 class="font-bold text-white tracking-wide">CONNECT MONGODB CLUSTER</h3>
+                </div>
+                <button id="closeMongoConfigBtn" class="text-slate-400 hover:text-white">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+
+            <p class="text-xs text-slate-300 leading-relaxed">
+                Connect your local MongoDB daemon, Docker MongoDB instance, or MongoDB Atlas remote connection string. If unreachable, the embedded engine remains operational.
+            </p>
+
+            <div class="space-y-2">
+                <label class="text-xs mono text-cyan-300 block">MONGODB CONNECTION STRING (URI)</label>
+                <input id="mongoUriInput" type="text" value="mongodb://localhost:27017" class="w-full bg-slate-950 border border-white/20 rounded-lg px-3 py-2 text-xs mono text-white focus:border-cyan-400 focus:outline-none">
+                <p class="text-[11px] text-slate-500 mono">Example: mongodb+srv://user:pass@cluster0.mongodb.net/vortex_bigdata</p>
+            </div>
+
+            <div id="mongoConnectStatus"></div>
+
+            <div class="flex items-center justify-end space-x-3 pt-2">
+                <button id="applyMongoUriBtn" class="px-4 py-2 bg-cyan-400 hover:bg-cyan-300 text-black font-bold text-xs mono rounded-lg transition">
+                    TEST & CONNECT
+                </button>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- Master Scripts -->
+    <script src="/static/js/audio_synth.js"></script>
+    <script src="/static/js/visualizer.js"></script>
+    <script src="/static/js/pipeline_builder.js"></script>
+    <script src="/static/js/websocket_client.js"></script>
+    <script src="/static/js/app.js"></script>
+</body>
+</html>
