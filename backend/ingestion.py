@@ -115,6 +115,12 @@ class IngestionEngine:
                         # Keep last 20 events for live HUD visualization
                         self.recent_events_buffer = (batch[-20:] + self.recent_events_buffer)[:20]
 
+                    # Cap in-memory mock collection to protect free-tier RAM if in mock mode
+                    if db_manager.is_mock and self.total_ingested_session % 500 == 0:
+                        if raw_coll.count_documents({}) > 6000:
+                            oldest_ids = [d["_id"] for d in raw_coll.find({}, {"_id": 1}).limit(1500)]
+                            raw_coll.delete_many({"_id": {"$in": oldest_ids}})
+
             except Exception as e:
                 logger.error(f"Error in streaming worker: {e}")
 

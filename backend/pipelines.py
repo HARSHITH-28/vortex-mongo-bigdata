@@ -16,6 +16,8 @@ logger = logging.getLogger("vortex.pipelines")
 class AggregationPipelines:
     """
     Houses optimized MongoDB Aggregation pipelines for telemetry big data processing.
+    Seamlessly executes native MongoDB multi-stage aggregations on real MongoDB / Atlas,
+    and provides high-speed resilient processing when in embedded mode.
     """
 
     @staticmethod
@@ -151,6 +153,55 @@ class AggregationPipelines:
         coll = db_manager.db[settings.COLLECTION_RAW_TELEMETRY]
         since_time = datetime.now(timezone.utc) - timedelta(minutes=minutes_back)
 
+        # Fast resilient path for embedded mode (mongomock does not support $dateToString)
+        if db_manager.is_mock:
+            try:
+                docs = list(coll.find({"timestamp": {"$gte": since_time}}).limit(3000))
+                buckets = {}
+                for d in docs:
+                    ts = d.get("timestamp")
+                    if isinstance(ts, datetime):
+                        key = ts.strftime("%H:%M")
+                    else:
+                        key = str(ts)[11:16] if len(str(ts)) >= 16 else "12:00"
+                    if key not in buckets:
+                        buckets[key] = {
+                            "time": key, "count": 0, "lat_sum": 0.0, "max_latency": 0.0,
+                            "tp_sum": 0.0, "cpu_sum": 0.0, "total_errors": 0, "critical_count": 0
+                        }
+                    b = buckets[key]
+                    m = d.get("metrics", {})
+                    b["count"] += 1
+                    lat = m.get("latency_ms", 0)
+                    b["lat_sum"] += lat
+                    if lat > b["max_latency"]:
+                        b["max_latency"] = lat
+                    b["tp_sum"] += m.get("throughput_mbps", 0)
+                    b["cpu_sum"] += m.get("cpu_utilization", 0)
+                    b["total_errors"] += m.get("error_count", 0)
+                    if d.get("status") == "CRITICAL":
+                        b["critical_count"] += 1
+
+                formatted = []
+                for k in sorted(buckets.keys()):
+                    b = buckets[k]
+                    cnt = max(1, b["count"])
+                    formatted.append({
+                        "time": b["time"],
+                        "count": b["count"],
+                        "avg_latency": round(b["lat_sum"] / cnt, 2),
+                        "max_latency": round(b["max_latency"], 2),
+                        "avg_throughput": round(b["tp_sum"] / cnt, 2),
+                        "avg_cpu": round(b["cpu_sum"] / cnt, 2),
+                        "total_errors": b["total_errors"],
+                        "critical_count": b["critical_count"]
+                    })
+                return formatted
+            except Exception as ex:
+                logger.error(f"In-memory time-series aggregation failed: {ex}")
+                return []
+
+        # Native MongoDB aggregation pipeline for Live Cluster
         pipeline = [
             {"$match": {"timestamp": {"$gte": since_time}}},
             {
@@ -178,7 +229,6 @@ class AggregationPipelines:
 
         try:
             results = list(coll.aggregate(pipeline))
-            # Format results
             formatted = []
             for item in results:
                 formatted.append({
@@ -205,6 +255,47 @@ class AggregationPipelines:
             return []
 
         coll = db_manager.db[settings.COLLECTION_RAW_TELEMETRY]
+
+        # Fast resilient path for embedded mode
+        if db_manager.is_mock:
+            try:
+                docs = list(coll.find({}).limit(5000))
+                regions = {}
+                for d in docs:
+                    reg = d.get("region", "unknown")
+                    if reg not in regions:
+                        regions[reg] = {
+                            "region": reg, "total_events": 0, "lat_sum": 0.0,
+                            "tp_sum": 0.0, "total_errors": 0, "nodes": set(), "critical_events": 0
+                        }
+                    r = regions[reg]
+                    m = d.get("metrics", {})
+                    r["total_events"] += 1
+                    r["lat_sum"] += m.get("latency_ms", 0)
+                    r["tp_sum"] += m.get("throughput_mbps", 0)
+                    r["total_errors"] += m.get("error_count", 0)
+                    r["nodes"].add(d.get("source_node", ""))
+                    if d.get("status") == "CRITICAL":
+                        r["critical_events"] += 1
+
+                formatted = []
+                for reg, r in regions.items():
+                    cnt = max(1, r["total_events"])
+                    formatted.append({
+                        "region": reg,
+                        "total_events": r["total_events"],
+                        "avg_latency": round(r["lat_sum"] / cnt, 2),
+                        "avg_throughput": round(r["tp_sum"] / cnt, 2),
+                        "total_errors": r["total_errors"],
+                        "active_nodes_count": len(r["nodes"]),
+                        "critical_events": r["critical_events"]
+                    })
+                return sorted(formatted, key=lambda x: x["total_events"], reverse=True)
+            except Exception as ex:
+                logger.error(f"In-memory regional aggregation failed: {ex}")
+                return []
+
+        # Native MongoDB aggregation pipeline for Live Cluster
         pipeline = [
             {
                 "$group": {
@@ -262,9 +353,8 @@ class AggregationPipelines:
             results = list(cursor)
             exec_time_ms = round((time.time() - start_time) * 1000, 2)
 
-            # Sanitize ObjectId and Datetime for JSON response
             sanitized = []
-            for doc in results[:200]:  # Cap output at 200 items for frontend responsiveness
+            for doc in results[:200]:
                 sanitized.append(AggregationPipelines._sanitize_bson(doc))
 
             return {
